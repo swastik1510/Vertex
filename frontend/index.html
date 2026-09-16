@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vertex – Nifty Alpha Engine</title>
+  <meta name="description" content="AI Fund Manager predicting Nifty 100 stocks likely to beat the index in the next 63 trading days using Dual Classification + Regression models.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Title Section -->
+    <header class="app-header">
+      <div class="header-content">
+        <h1 class="main-title">Vertex – Nifty Alpha Engine</h1>
+        <span id="versionTag" class="version-tag">Version 2</span>
+      </div>
+    </header>
+
+    <!-- Status Alert -->
+    <div id="statusAlert" class="alert alert-success">
+      <span class="alert-icon">✅</span>
+      <span class="alert-text" id="statusText">Model + Data Loaded</span>
+    </div>
+
+    <!-- Date Picker Section -->
+    <section class="control-section">
+      <div class="control-header">
+        <h2 class="section-title">📅 Select Trading Date</h2>
+        <div id="niftyBadge" class="nifty-badge hidden">
+          <span class="nifty-label">Nifty Expected 63D Return:</span>
+          <span id="niftyReturnValue" class="nifty-value">+0.00%</span>
+        </div>
+      </div>
+      <div class="field-group">
+        <label for="dateInput" class="field-label">Choose trading date:</label>
+        <div class="input-action-row">
+          <input type="date" id="dateInput" class="date-picker-input" />
+          <button id="predictBtn" class="btn-predict">
+            <span class="btn-text">🚀 Predict</span>
+            <span class="btn-spinner hidden" id="btnSpinner"></span>
+          </button>
+        </div>
+        <div id="dateResolutionNote" class="date-note hidden"></div>
+      </div>
+    </section>
+
+    <!-- Message Alerts Container -->
+    <div id="messageContainer" class="message-container hidden"></div>
+
+    <!-- Results Section (shown only after predict clicked) -->
+    <section id="resultsSection" class="results-section hidden">
+      <!-- 3️⃣ PERFORMANCE SUMMARY (KPI METRICS) -->
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">Total Evaluated</div>
+          <div class="kpi-value" id="kpiTotalStocks">-</div>
+          <div class="kpi-subtext">Universe candidates</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">% Predicted to Beat Nifty</div>
+          <div class="kpi-value" id="kpiPredictedBeatPct">-</div>
+          <div class="kpi-subtext">High conviction signals</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Beat Accuracy (%)</div>
+          <div class="kpi-value highlight-green" id="kpiBeatAccuracy">-</div>
+          <div class="kpi-subtext">Historical alignment</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Benchmark-Adjusted Accuracy</div>
+          <div class="kpi-value highlight-blue" id="kpiBenchmarkAccuracy">-</div>
+          <div class="kpi-subtext">Dual model consensus</div>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <div class="tabs-container">
+        <div class="tabs-nav" role="tablist">
+          <button class="tab-btn active" id="tabBtnSignals" data-tab="tabSignals" role="tab" aria-selected="true">
+            🎯 1. Signals
+          </button>
+          <button class="tab-btn" id="tabBtnOutcomes" data-tab="tabOutcomes" role="tab" aria-selected="false">
+            📊 2. Outcomes (Prediction vs Reality)
+          </button>
+          <button class="tab-btn" id="tabBtnShortlist" data-tab="tabShortlist" role="tab" aria-selected="false">
+            🏆 3. Correct Predictions Shortlist
+            <span id="shortlistBadgeCount" class="tab-badge">0</span>
+          </button>
+        </div>
+
+        <!-- Tab 1: Signals Table -->
+        <div class="tab-content active" id="tabSignals" role="tabpanel">
+          <div class="table-card">
+            <div class="table-header-info">
+              <span class="table-title">Stock Outperformance Signals & Expected Alpha</span>
+              <span id="signalsCount" class="results-count"></span>
+            </div>
+            <div class="table-responsive">
+              <table class="data-table" id="signalsTable">
+                <thead>
+                  <tr>
+                    <th class="col-rank">#</th>
+                    <th class="col-stock">Stock</th>
+                    <th class="col-num">CLOSE</th>
+                    <th class="col-center">Beat Nifty Signal</th>
+                    <th class="col-num">Prob Beat Nifty</th>
+                    <th class="col-num">Pred 63D Return</th>
+                    <th class="col-num">Predicted Alpha vs Nifty</th>
+                  </tr>
+                </thead>
+                <tbody id="signalsTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Outcomes Table -->
+        <div class="tab-content" id="tabOutcomes" role="tabpanel">
+          <div class="table-card">
+            <div class="table-header-info">
+              <span class="table-title">Historical Outcomes (Model Prediction vs Market Reality)</span>
+              <span id="outcomesCount" class="results-count"></span>
+            </div>
+            <div class="table-responsive">
+              <table class="data-table" id="outcomesTable">
+                <thead>
+                  <tr>
+                    <th class="col-rank">#</th>
+                    <th class="col-stock">Stock</th>
+                    <th class="col-num">Pred 63D Return</th>
+                    <th class="col-num">Actual 63D Return</th>
+                    <th class="col-num">Return Deviation</th>
+                  </tr>
+                </thead>
+                <tbody id="outcomesTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 3: Shortlist Table -->
+        <div class="tab-content" id="tabShortlist" role="tabpanel">
+          <div id="shortlistBanner" class="shortlist-summary-banner">
+            <div class="banner-icon">⚡</div>
+            <div class="banner-text">
+              <strong id="shortlistBannerCount">0 stocks</strong> where the model was <strong>CORRECT</strong> & actually beat Nifty 100.
+              <span class="alpha-highlight" id="shortlistBannerAlpha">Average Actual Alpha: +0.00%</span>
+            </div>
+          </div>
+          <div class="table-card">
+            <div class="table-responsive">
+              <table class="data-table" id="shortlistTable">
+                <thead>
+                  <tr>
+                    <th class="col-rank">#</th>
+                    <th class="col-stock">Stock</th>
+                    <th class="col-num">CLOSE</th>
+                    <th class="col-num">Prob Beat Nifty</th>
+                    <th class="col-num">Pred 63D Return</th>
+                    <th class="col-num">Actual 63D Return</th>
+                    <th class="col-num">Actual Nifty 63D</th>
+                    <th class="col-num">Actual Alpha</th>
+                  </tr>
+                </thead>
+                <tbody id="shortlistTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
