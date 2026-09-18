@@ -33,6 +33,123 @@ document.addEventListener("DOMContentLoaded", () => {
   const shortlistBannerCount = document.getElementById("shortlistBannerCount");
   const shortlistBannerAlpha = document.getElementById("shortlistBannerAlpha");
 
+  // Slide-out Drawer Elements
+  const drawerBackdrop = document.getElementById("drawerBackdrop");
+  const stockExplainDrawer = document.getElementById("stockExplainDrawer");
+  const closeDrawerBtn = document.getElementById("closeDrawerBtn");
+  const drawerStockTitle = document.getElementById("drawerStockTitle");
+  const drawerSignalBadge = document.getElementById("drawerSignalBadge");
+  const drawerStockClose = document.getElementById("drawerStockClose");
+  const drawerStockProb = document.getElementById("drawerStockProb");
+  const drawerProbVal = document.getElementById("drawerProbVal");
+  const drawerAlphaVal = document.getElementById("drawerAlphaVal");
+  const drawerPillarsContainer = document.getElementById("drawerPillarsContainer");
+  const drawerDriversList = document.getElementById("drawerDriversList");
+  const drawerRisksList = document.getElementById("drawerRisksList");
+
+  // Open & populate drawer
+  function openDrawer(item) {
+    if (!item) return;
+    drawerStockTitle.textContent = item.Stock;
+    drawerStockClose.textContent = item.formatted_close || `₹${item.CLOSE?.toFixed(2) || '0.00'}`;
+    drawerStockProb.textContent = `${item.formatted_prob} Beat Nifty`;
+    drawerProbVal.textContent = item.formatted_prob;
+
+    const alphaStr = item.formatted_predicted_alpha || item.formatted_actual_alpha || "N/A";
+    drawerAlphaVal.textContent = alphaStr;
+    drawerAlphaVal.className = alphaStr.startsWith("+") ? "snapshot-val highlight-green" : alphaStr.startsWith("-") ? "snapshot-val highlight-red" : "snapshot-val";
+
+    const isYes = item.Beat_Nifty_Signal === "Yes" || (item.prob_beat_nifty100 >= 0.5);
+    drawerSignalBadge.textContent = isYes ? "BEAT NIFTY: YES" : "BEAT NIFTY: NO";
+    drawerSignalBadge.className = isYes ? "signal-pill signal-yes" : "signal-pill signal-no";
+
+    const attr = item.attribution;
+    if (attr) {
+      // Pillars
+      drawerPillarsContainer.innerHTML = (attr.pillars || []).map(p => {
+        const isPos = p.net_impact > 0;
+        const isNeg = p.net_impact < 0;
+        const scoreClass = isPos ? "pillar-pos" : isNeg ? "pillar-neg" : "pillar-neutral";
+        return `
+          <div class="pillar-chip">
+            <span class="pillar-name" title="${p.pillar}">${p.pillar}</span>
+            <span class="pillar-score ${scoreClass}">${p.formatted_net_impact}</span>
+          </div>
+        `;
+      }).join("");
+
+      // Top Positive Drivers
+      if (attr.drivers && attr.drivers.length > 0) {
+        const maxImpact = Math.max(...attr.drivers.map(d => Math.abs(d.impact)), 1.0);
+        drawerDriversList.innerHTML = attr.drivers.map(d => {
+          const barPct = Math.min(Math.max((Math.abs(d.impact) / maxImpact) * 100, 15), 100);
+          return `
+            <div class="factor-item">
+              <div class="factor-top-row">
+                <div>
+                  <div class="factor-name">${d.name}</div>
+                  <div class="factor-pillar-tag">${d.pillar}</div>
+                </div>
+                <div class="factor-impact pos">${d.formatted_impact}</div>
+              </div>
+              <div class="factor-bar-wrapper">
+                <div class="factor-bar pos" style="width: ${barPct}%;"></div>
+              </div>
+            </div>
+          `;
+        }).join("");
+      } else {
+        drawerDriversList.innerHTML = `<div style="color:var(--text-muted);font-size:0.8rem;padding:0.5rem 0;">No strong positive drivers detected for this asset.</div>`;
+      }
+
+      // Top Negative Risks
+      if (attr.risks && attr.risks.length > 0) {
+        const maxRisk = Math.max(...attr.risks.map(r => Math.abs(r.impact)), 1.0);
+        drawerRisksList.innerHTML = attr.risks.map(r => {
+          const barPct = Math.min(Math.max((Math.abs(r.impact) / maxRisk) * 100, 15), 100);
+          return `
+            <div class="factor-item">
+              <div class="factor-top-row">
+                <div>
+                  <div class="factor-name">${r.name}</div>
+                  <div class="factor-pillar-tag">${r.pillar}</div>
+                </div>
+                <div class="factor-impact neg">${r.formatted_impact}</div>
+              </div>
+              <div class="factor-bar-wrapper">
+                <div class="factor-bar neg" style="width: ${barPct}%;"></div>
+              </div>
+            </div>
+          `;
+        }).join("");
+      } else {
+        drawerRisksList.innerHTML = `<div style="color:var(--text-muted);font-size:0.8rem;padding:0.5rem 0;">No significant headwinds identified.</div>`;
+      }
+    } else {
+      drawerPillarsContainer.innerHTML = `<div style="color:var(--text-muted);font-size:0.8rem;grid-column: span 2;">Attribution unavailable for this model mode.</div>`;
+      drawerDriversList.innerHTML = `<div style="color:var(--text-muted);font-size:0.8rem;">TreeSHAP attribution requires loaded XGBoost model.</div>`;
+      drawerRisksList.innerHTML = `<div style="color:var(--text-muted);font-size:0.8rem;">TreeSHAP attribution requires loaded XGBoost model.</div>`;
+    }
+
+    drawerBackdrop.classList.remove("hidden");
+    stockExplainDrawer.classList.remove("hidden");
+    document.body.style.overflow = "hidden";
+  }
+
+  function closeDrawer() {
+    drawerBackdrop.classList.add("hidden");
+    stockExplainDrawer.classList.add("hidden");
+    document.body.style.overflow = "";
+  }
+
+  if (closeDrawerBtn) closeDrawerBtn.addEventListener("click", closeDrawer);
+  if (drawerBackdrop) drawerBackdrop.addEventListener("click", closeDrawer);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !stockExplainDrawer.classList.contains("hidden")) {
+      closeDrawer();
+    }
+  });
+
   // Message alert helper
   function showMessage(type, text) {
     messageContainer.className = `alert alert-${type}`;
@@ -77,10 +194,11 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!res.ok) throw new Error("Failed to load metadata");
       const data = await res.json();
 
-      if (data.min_date && data.max_date) {
+      if (data.min_date) {
         dateInput.min = data.min_date;
-        dateInput.max = data.max_date;
-        dateInput.value = data.default_date || data.max_date;
+        const maxValidDate = data.max_prediction_date || "2024-09-30";
+        dateInput.max = maxValidDate;
+        dateInput.value = data.default_date || maxValidDate;
       }
 
       if (data.active_model_mode && versionTag) {
@@ -121,30 +239,26 @@ document.addEventListener("DOMContentLoaded", () => {
         body: JSON.stringify({ date: selectedDate })
       });
 
-      const data = await res.json();
-
       if (!res.ok) {
-        if (res.status === 404) {
-          showMessage("warning", data.detail || "No data for this date.");
-        } else {
-          showMessage("danger", `❌ Prediction failed: ${data.detail || "Unknown error"}`);
-        }
-        return;
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.detail || `Server responded with status ${res.status}`);
       }
 
-      // Check if trading date was adjusted
-      if (!data.is_exact_date && data.resolved_date) {
-        dateResolutionNote.textContent = `ℹ️ Non-trading day selected. Showing closest available trading day: ${data.resolved_date}`;
+      const data = await res.json();
+
+      // Show date resolution note if needed
+      if (!data.is_exact_date) {
+        dateResolutionNote.textContent = `Note: Selected date was not an active trading day. Using closest active trading date: ${data.resolved_date}`;
         dateResolutionNote.classList.remove("hidden");
       }
 
-      // Populate Nifty Badge
-      if (niftyBadge && niftyReturnValue) {
-        niftyReturnValue.textContent = data.formatted_nifty_expected || "+0.00%";
+      // Update Nifty Expected Return Badge
+      if (data.nifty_expected_return !== undefined) {
+        niftyReturnValue.textContent = data.formatted_nifty_expected || `${data.nifty_expected_return.toFixed(2)}%`;
         niftyBadge.classList.remove("hidden");
       }
 
-      // Populate KPI cards
+      // Render KPIs
       renderKPIs(data.performance_summary);
 
       // Render Tables
@@ -177,12 +291,13 @@ document.addEventListener("DOMContentLoaded", () => {
     signalsCount.textContent = `${signals.length} stocks`;
 
     if (signals.length === 0) {
-      signalsTableBody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--text-muted);">No signals available.</td></tr>`;
+      signalsTableBody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--text-muted);">No signals available.</td></tr>`;
       return;
     }
 
     signals.forEach((item) => {
       const tr = document.createElement("tr");
+      tr.className = "clickable-row";
       const rankBadgeClass = item.rank <= 3 ? "rank-badge top-3" : "rank-badge";
       const isYes = item.Beat_Nifty_Signal === "Yes";
       const signalPillClass = isYes ? "signal-pill signal-yes" : "signal-pill signal-no";
@@ -192,13 +307,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
       tr.innerHTML = `
         <td class="col-rank"><span class="${rankBadgeClass}">${item.rank}</span></td>
-        <td class="col-stock">${item.Stock}</td>
+        <td class="col-stock"><strong>${item.Stock}</strong></td>
         <td class="col-num">${item.formatted_close}</td>
         <td class="col-center"><span class="${signalPillClass}">${item.Beat_Nifty_Signal}</span></td>
         <td class="col-num" style="color:#34d399;font-weight:600;">${item.formatted_prob}</td>
         <td class="col-num">${item.formatted_pred_return}</td>
         <td class="col-num ${alphaClass}">${item.formatted_predicted_alpha}</td>
+        <td class="col-center">
+          <button class="btn-explain" type="button" title="View Model Drivers for ${item.Stock}">⚡ Explain</button>
+        </td>
       `;
+
+      tr.addEventListener("click", () => openDrawer(item));
       signalsTableBody.appendChild(tr);
     });
   }
@@ -237,24 +357,30 @@ document.addEventListener("DOMContentLoaded", () => {
     shortlistBannerAlpha.textContent = `Average Actual Alpha: ${avgAlpha}`;
 
     if (shortlist.length === 0) {
-      shortlistTableBody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:2rem;">No stocks met the consensus winning criteria on this date.</td></tr>`;
+      shortlistTableBody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:2rem;">No stocks met the consensus winning criteria on this date.</td></tr>`;
       return;
     }
 
     shortlist.forEach((item) => {
       const tr = document.createElement("tr");
+      tr.className = "clickable-row";
       const rankBadgeClass = item.rank <= 3 ? "rank-badge top-3" : "rank-badge";
 
       tr.innerHTML = `
         <td class="col-rank"><span class="${rankBadgeClass}">${item.rank}</span></td>
-        <td class="col-stock">${item.Stock}</td>
+        <td class="col-stock"><strong>${item.Stock}</strong></td>
         <td class="col-num">${item.formatted_close}</td>
         <td class="col-num" style="color:#34d399;font-weight:600;">${item.formatted_prob}</td>
         <td class="col-num">${item.formatted_pred_return}</td>
         <td class="col-num">${item.formatted_actual_return}</td>
         <td class="col-num">${item.formatted_nifty_return}</td>
         <td class="col-num alpha-pos" style="font-weight:700;">${item.formatted_actual_alpha}</td>
+        <td class="col-center">
+          <button class="btn-explain" type="button" title="View Model Drivers for ${item.Stock}">⚡ Explain</button>
+        </td>
       `;
+
+      tr.addEventListener("click", () => openDrawer(item));
       shortlistTableBody.appendChild(tr);
     });
   }

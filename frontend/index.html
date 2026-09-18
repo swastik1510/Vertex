@@ -20,25 +20,19 @@
       </div>
     </header>
 
-    <!-- Status Alert -->
-    <div id="statusAlert" class="alert alert-success">
-      <span class="alert-icon">✅</span>
-      <span class="alert-text" id="statusText">Model + Data Loaded</span>
-    </div>
-
     <!-- Date Picker Section -->
     <section class="control-section">
       <div class="control-header">
         <h2 class="section-title">📅 Select Trading Date</h2>
-        <div id="niftyBadge" class="nifty-badge hidden">
-          <span class="nifty-label">Nifty Expected 63D Return:</span>
-          <span id="niftyReturnValue" class="nifty-value">+0.00%</span>
+        <div class="date-range-badge">
+          <span>Range: <strong>01-Jan-2024</strong> to <strong>30-Sep-2024</strong></span>
         </div>
       </div>
+      <p class="date-range-hint">Date restricted to 30-Sep-2024 so the full 63-day forward horizon evaluates within the 2024 test universe.</p>
       <div class="field-group">
-        <label for="dateInput" class="field-label">Choose trading date:</label>
+        <label for="dateInput" class="field-label">Choose trading date (01-Jan-2024 to 30-Sep-2024):</label>
         <div class="input-action-row">
-          <input type="date" id="dateInput" class="date-picker-input" />
+          <input type="date" id="dateInput" class="date-picker-input" min="2024-01-01" max="2024-09-30" value="2024-09-30" />
           <button id="predictBtn" class="btn-predict">
             <span class="btn-text">🚀 Predict</span>
             <span class="btn-spinner hidden" id="btnSpinner"></span>
@@ -96,7 +90,13 @@
         <div class="tab-content active" id="tabSignals" role="tabpanel">
           <div class="table-card">
             <div class="table-header-info">
-              <span class="table-title">Stock Outperformance Signals & Expected Alpha</span>
+              <div class="table-title-group">
+                <span class="table-title">Stock Outperformance Signals & Expected Alpha</span>
+                <div id="niftyBadge" class="nifty-badge hidden">
+                  <span class="nifty-label">Nifty Expected 63D Return:</span>
+                  <span id="niftyReturnValue" class="nifty-value">+0.00%</span>
+                </div>
+              </div>
               <span id="signalsCount" class="results-count"></span>
             </div>
             <div class="table-responsive">
@@ -110,6 +110,7 @@
                     <th class="col-num">Prob Beat Nifty</th>
                     <th class="col-num">Pred 63D Return</th>
                     <th class="col-num">Predicted Alpha vs Nifty</th>
+                    <th class="col-center">Drivers</th>
                   </tr>
                 </thead>
                 <tbody id="signalsTableBody"></tbody>
@@ -164,6 +165,7 @@
                     <th class="col-num">Actual 63D Return</th>
                     <th class="col-num">Actual Nifty 63D</th>
                     <th class="col-num">Actual Alpha</th>
+                    <th class="col-center">Drivers</th>
                   </tr>
                 </thead>
                 <tbody id="shortlistTableBody"></tbody>
@@ -174,6 +176,92 @@
       </div>
     </section>
   </div>
+
+  <!-- Slide-out Drawer Backdrop Overlay -->
+  <div id="drawerBackdrop" class="drawer-backdrop hidden"></div>
+
+  <!-- Slide-out Side Panel (Model Explainability) -->
+  <aside id="stockExplainDrawer" class="explain-drawer hidden" aria-hidden="true" role="dialog" aria-labelledby="drawerStockTitle">
+    <div class="drawer-header">
+      <div class="drawer-header-content">
+        <div class="drawer-pretitle">QUANTITATIVE MODEL ATTRIBUTION</div>
+        <div class="drawer-title-row">
+          <h2 id="drawerStockTitle" class="drawer-stock-name">STOCK</h2>
+          <span id="drawerSignalBadge" class="signal-pill signal-yes">YES</span>
+        </div>
+        <div class="drawer-meta-row">
+          <span id="drawerStockClose" class="drawer-price">₹0.00</span>
+          <span class="drawer-sep">•</span>
+          <span id="drawerStockProb" class="drawer-prob">0.0% Beat Nifty</span>
+        </div>
+      </div>
+      <button id="closeDrawerBtn" class="drawer-close-btn" aria-label="Close panel">✕</button>
+    </div>
+
+    <div class="drawer-body">
+      <!-- Snapshot Cards -->
+      <div class="drawer-snapshot-grid">
+        <div class="snapshot-card">
+          <div class="snapshot-label">Beat Nifty Probability</div>
+          <div class="snapshot-val" id="drawerProbVal">0.0%</div>
+          <div class="snapshot-sub">Classification output</div>
+        </div>
+        <div class="snapshot-card">
+          <div class="snapshot-label">Predicted Alpha</div>
+          <div class="snapshot-val" id="drawerAlphaVal">+0.00%</div>
+          <div class="snapshot-sub">Expected excess return</div>
+        </div>
+      </div>
+
+      <!-- Institutional Factor Pillars -->
+      <div class="drawer-section">
+        <div class="drawer-section-header">
+          <h3 class="drawer-section-title">🏛️ Factor Pillars (Net Attribution)</h3>
+          <span class="drawer-section-hint">Log-odds impact</span>
+        </div>
+        <div id="drawerPillarsContainer" class="pillars-grid">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+
+      <!-- Model Drivers (Top Positive Features) -->
+      <div class="drawer-section">
+        <div class="drawer-section-header">
+          <h3 class="drawer-section-title">🚀 Model Drivers (Bullish Push)</h3>
+          <span class="drawer-section-badge badge-pos">Top Positive Factors</span>
+        </div>
+        <p class="drawer-section-desc">Key factors that elevated the model's confidence in beating Nifty:</p>
+        <div id="drawerDriversList" class="attribution-list">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+
+      <!-- Signal Risks (Top Negative Features) -->
+      <div class="drawer-section">
+        <div class="drawer-section-header">
+          <h3 class="drawer-section-title">⚠️ Signal Risks & Headwinds</h3>
+          <span class="drawer-section-badge badge-neg">Top Drag Factors</span>
+        </div>
+        <p class="drawer-section-desc">Factors creating friction or uncertainty against outperformance:</p>
+        <div id="drawerRisksList" class="attribution-list">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+
+      <!-- Quantitative Methodology Disclaimer -->
+      <div class="drawer-disclaimer">
+        <div class="disclaimer-header">
+          <span class="disclaimer-icon">💡</span>
+          <strong>Institutional Methodology Note</strong>
+        </div>
+        <p class="disclaimer-text">
+          Attributions are computed mathematically using <strong>TreeSHAP (Shapley Additive exPlanations)</strong> directly through the trained XGBoost trees.
+          They explain <em>what influenced the model's decision path</em>, rather than guaranteeing real-world causal price movements.
+        </p>
+      </div>
+    </div>
+  </aside>
+
 
   <script src="/static/app.js"></script>
 </body>

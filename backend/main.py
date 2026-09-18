@@ -95,6 +95,51 @@ CLIP_RULES = {
     'week_of_year': (1, 53),
 }
 
+# ------------------------------------------------------------
+# FEATURE TAXONOMY & INSTITUTIONAL PILLARS
+# ------------------------------------------------------------
+FEATURE_TAXONOMY: Dict[str, Dict[str, str]] = {
+    # Momentum & Returns
+    'ret_5d': {'name': '5-Day Return', 'pillar': 'Momentum & Returns'},
+    'ret_10d': {'name': '10-Day Return', 'pillar': 'Momentum & Returns'},
+    'ret_21d': {'name': '21-Day (1M) Return', 'pillar': 'Momentum & Returns'},
+    'ret_42d': {'name': '42-Day (2M) Return', 'pillar': 'Momentum & Returns'},
+    'ret_63d': {'name': '63-Day (Quarterly) Momentum', 'pillar': 'Momentum & Returns'},
+    'ret_126d': {'name': '126-Day (6M) Momentum', 'pillar': 'Momentum & Returns'},
+    'dist_sma50': {'name': 'Distance to 50-DMA', 'pillar': 'Momentum & Returns'},
+    'dist_sma200': {'name': 'Distance to 200-DMA', 'pillar': 'Momentum & Returns'},
+    'ret_5d_rank': {'name': '5D Universe Momentum Rank', 'pillar': 'Momentum & Returns'},
+    'ret_10d_rank': {'name': '10D Universe Momentum Rank', 'pillar': 'Momentum & Returns'},
+    'ret_21d_rank': {'name': '21D Universe Momentum Rank', 'pillar': 'Momentum & Returns'},
+    'ret_63d_rank': {'name': '63D Universe Momentum Rank', 'pillar': 'Momentum & Returns'},
+
+    # Trend Strength
+    'adx_14': {'name': 'Trend Strength (ADX)', 'pillar': 'Trend Strength'},
+    'macd_hist': {'name': 'MACD Histogram', 'pillar': 'Trend Strength'},
+    'macd_hist_rank': {'name': 'MACD Universe Rank', 'pillar': 'Trend Strength'},
+    'rsi_14': {'name': 'RSI Indicator (14D)', 'pillar': 'Trend Strength'},
+    'rsi_14_rank': {'name': 'RSI Universe Rank', 'pillar': 'Trend Strength'},
+    'CCI': {'name': 'Commodity Channel Index (CCI)', 'pillar': 'Trend Strength'},
+    'CCI_rank': {'name': 'CCI Universe Rank', 'pillar': 'Trend Strength'},
+
+    # Volatility & Bands
+    'atr_norm': {'name': 'Normalized Volatility (ATR)', 'pillar': 'Volatility & Bands'},
+    'bb_width': {'name': 'Bollinger Band Width', 'pillar': 'Volatility & Bands'},
+    'bb_percentb': {'name': 'Bollinger Band %B Position', 'pillar': 'Volatility & Bands'},
+
+    # Volume & Liquidity
+    'volume_ratio': {'name': 'Volume Surge Ratio', 'pillar': 'Volume & Liquidity'},
+    'volume_ratio_rank': {'name': 'Universe Volume Rank', 'pillar': 'Volume & Liquidity'},
+}
+
+PILLARS_ORDER: List[str] = [
+    'Momentum & Returns',
+    'Trend Strength',
+    'Volatility & Bands',
+    'Volume & Liquidity'
+]
+
+
 # Global loaded resources
 df: Optional[pd.DataFrame] = None
 model_clf: Optional[xgb.Booster] = None
@@ -105,11 +150,12 @@ pipeline_v1 = None
 
 min_date_str: Optional[str] = None
 max_date_str: Optional[str] = None
+max_pred_date_str: Optional[str] = None
 active_model_mode: str = "unknown"
 
 def load_resources():
     global df, model_clf, scaler_clf, model_reg, scaler_reg, pipeline_v1
-    global min_date_str, max_date_str, active_model_mode
+    global min_date_str, max_date_str, max_pred_date_str, active_model_mode
 
     # 1. Load Dataset (Prefer V2 if exists, fallback to V1)
     if df is None:
@@ -125,6 +171,14 @@ def load_resources():
         max_date = df['Date'].max().date()
         min_date_str = min_date.strftime("%Y-%m-%d")
         max_date_str = max_date.strftime("%Y-%m-%d")
+
+        unique_dates = df['Date'].drop_duplicates().sort_values().reset_index(drop=True)
+        if len(unique_dates) >= 63:
+            max_pred_date = unique_dates.iloc[-63].date()
+        else:
+            max_pred_date = max_date
+        max_pred_date_str = max_pred_date.strftime("%Y-%m-%d")
+
 
     # 2. Load Classification Model & Scaler
     if model_clf is None:
@@ -254,6 +308,26 @@ def get_nifty_features_and_predict(target_date: pd.Timestamp) -> float:
 class PredictRequest(BaseModel):
     date: str
 
+class FactorDriverItem(BaseModel):
+    name: str
+    pillar: str
+    raw_feature: str
+    impact: float
+    formatted_impact: str
+    direction: str
+
+class PillarScore(BaseModel):
+    pillar: str
+    net_impact: float
+    formatted_net_impact: str
+
+class StockAttribution(BaseModel):
+    base_value: float
+    formatted_base_value: str
+    drivers: List[FactorDriverItem]
+    risks: List[FactorDriverItem]
+    pillars: List[PillarScore]
+
 class StockPrediction(BaseModel):
     rank: int
     Stock: str
@@ -274,6 +348,7 @@ class SignalItem(BaseModel):
     formatted_pred_return: str
     predicted_alpha_vs_nifty: Optional[float] = None
     formatted_predicted_alpha: str
+    attribution: Optional[StockAttribution] = None
 
 class OutcomeItem(BaseModel):
     Stock: str
@@ -305,6 +380,8 @@ class ShortlistItem(BaseModel):
     formatted_nifty_return: str
     actual_alpha: Optional[float] = None
     formatted_actual_alpha: str
+    attribution: Optional[StockAttribution] = None
+
 
 class PredictResponseV2(BaseModel):
     date: str
@@ -323,6 +400,91 @@ class PredictResponseV2(BaseModel):
     predictions: List[StockPrediction]
 
 # ------------------------------------------------------------
+# EXPLAINABILITY ENGINE (TreeSHAP)
+# ------------------------------------------------------------
+def compute_stock_attributions(df_subset: pd.DataFrame) -> Dict[str, StockAttribution]:
+    """
+    Computes real TreeSHAP feature contributions for each stock in df_subset using XGBoost.
+    Returns a mapping: stock_ticker -> StockAttribution
+    """
+    attributions: Dict[str, StockAttribution] = {}
+    if model_clf is None or scaler_clf is None or df_subset.empty:
+        return attributions
+
+    try:
+        X_df = df_subset.copy()
+        for col in CLF_FEATURES:
+            if col not in X_df.columns:
+                X_df[col] = 0.0
+        X_clf = X_df[CLF_FEATURES].fillna(0.0)
+        X_scaled = scaler_clf.transform(X_clf)
+        dtest = xgb.DMatrix(X_scaled)
+        contribs = model_clf.predict(dtest, pred_contribs=True)
+
+        num_samples = contribs.shape[0]
+        num_feats = min(len(CLF_FEATURES), contribs.shape[1] - 1)
+        stock_names = df_subset['Stock'].tolist() if 'Stock' in df_subset.columns else [f"Stock_{i}" for i in range(num_samples)]
+
+        for i in range(num_samples):
+            bias = float(contribs[i, -1])
+            row_contribs = contribs[i, :num_feats]
+
+            pillar_sums: Dict[str, float] = {p: 0.0 for p in PILLARS_ORDER}
+            all_factors: List[FactorDriverItem] = []
+
+            for f_idx, feat in enumerate(CLF_FEATURES[:num_feats]):
+                c_val = float(row_contribs[f_idx])
+                tax = FEATURE_TAXONOMY.get(feat, {'name': feat, 'pillar': 'Trend Strength'})
+                p_name = tax['pillar']
+                if p_name in pillar_sums:
+                    pillar_sums[p_name] += c_val
+                else:
+                    pillar_sums[p_name] = c_val
+
+                all_factors.append(FactorDriverItem(
+                    name=tax['name'],
+                    pillar=p_name,
+                    raw_feature=feat,
+                    impact=round(c_val, 4),
+                    formatted_impact=f"{c_val:+.2f}",
+                    direction="positive" if c_val >= 0 else "negative"
+                ))
+
+            # Top 3 positive drivers
+            pos_factors = sorted([f for f in all_factors if f.impact > 0], key=lambda x: x.impact, reverse=True)
+            top_drivers = pos_factors[:3]
+            if not top_drivers:
+                top_drivers = sorted(all_factors, key=lambda x: x.impact, reverse=True)[:1]
+
+            # Top 3 negative signal risks (headwinds/drags)
+            neg_factors = sorted([f for f in all_factors if f.impact < 0], key=lambda x: x.impact)
+            top_risks = neg_factors[:3]
+            if not top_risks:
+                top_risks = sorted(all_factors, key=lambda x: x.impact)[:1]
+
+            pillar_scores = [
+                PillarScore(
+                    pillar=p,
+                    net_impact=round(pillar_sums.get(p, 0.0), 4),
+                    formatted_net_impact=f"{pillar_sums.get(p, 0.0):+.2f}"
+                )
+                for p in PILLARS_ORDER
+            ]
+
+            stock_symbol = str(stock_names[i])
+            attributions[stock_symbol] = StockAttribution(
+                base_value=round(bias, 4),
+                formatted_base_value=f"{bias:+.2f}",
+                drivers=top_drivers,
+                risks=top_risks,
+                pillars=pillar_scores
+            )
+    except Exception as e:
+        print(f"Error computing SHAP attribution: {e}")
+
+    return attributions
+
+# ------------------------------------------------------------
 # API ENDPOINTS
 # ------------------------------------------------------------
 @app.get("/api/meta")
@@ -332,7 +494,8 @@ def get_metadata():
         "status": "loaded",
         "min_date": min_date_str,
         "max_date": max_date_str,
-        "default_date": max_date_str,
+        "max_prediction_date": max_pred_date_str,
+        "default_date": max_pred_date_str,
         "total_records": len(df) if df is not None else 0,
         "unique_stocks": int(df['Stock'].nunique()) if df is not None else 0,
         "active_model_mode": active_model_mode,
@@ -518,18 +681,22 @@ def predict_alpha(req: PredictRequest):
     # --------------------------------------------------------
     # 6. Build Section 1: Signals
     # --------------------------------------------------------
+    attributions_map = compute_stock_attributions(day_df)
+
     signals: List[SignalItem] = []
     predictions_v1: List[StockPrediction] = []
 
     for idx, row in day_df.iterrows():
+        stock_name = str(row['Stock'])
         close_val = float(row.get('CLOSE', 0.0))
         prob_val = float(row.get('prob_beat_nifty100', 0.0))
         pred_ret = float(row['pred_return']) if pd.notna(row.get('pred_return')) else None
         pred_alpha = float(row['predicted_alpha_vs_nifty']) if pd.notna(row.get('predicted_alpha_vs_nifty')) else None
+        stock_attr = attributions_map.get(stock_name)
 
         sig_item = SignalItem(
             rank=idx + 1,
-            Stock=str(row['Stock']),
+            Stock=stock_name,
             CLOSE=round(close_val, 2),
             formatted_close=f"₹{close_val:,.2f}",
             Beat_Nifty_Signal=str(row['Beat_Nifty_Signal']),
@@ -538,14 +705,15 @@ def predict_alpha(req: PredictRequest):
             pred_return=round(pred_ret, 2) if pred_ret is not None else None,
             formatted_pred_return=f"{pred_ret:+.2f}%" if pred_ret is not None else "N/A",
             predicted_alpha_vs_nifty=round(pred_alpha, 2) if pred_alpha is not None else None,
-            formatted_predicted_alpha=f"{pred_alpha:+.2f}%" if pred_alpha is not None else "N/A"
+            formatted_predicted_alpha=f"{pred_alpha:+.2f}%" if pred_alpha is not None else "N/A",
+            attribution=stock_attr
         )
         signals.append(sig_item)
 
         if idx < 50:
             predictions_v1.append(StockPrediction(
                 rank=idx + 1,
-                Stock=str(row['Stock']),
+                Stock=stock_name,
                 CLOSE=round(close_val, 2),
                 prob_beat_nifty100=prob_val,
                 formatted_close=f"₹{close_val:,.2f}",
@@ -590,16 +758,18 @@ def predict_alpha(req: PredictRequest):
         avg_actual_alpha = float(alphas.mean()) if not alphas.empty else 0.0
 
         for idx, row in shortlist_df.iterrows():
+            stock_name = str(row['Stock'])
             close_val = float(row.get('CLOSE', 0.0))
             prob_val = float(row.get('prob_beat_nifty100', 0.0))
             pred_ret = float(row['pred_return']) if pd.notna(row.get('pred_return')) else None
             act_ret = float(row['actual_return_63d']) if pd.notna(row.get('actual_return_63d')) else None
             nifty_ret = float(row['nifty100_ret_63d']) if pd.notna(row.get('nifty100_ret_63d')) else None
             stock_alpha = (act_ret - nifty_ret) if (act_ret is not None and nifty_ret is not None) else None
+            stock_attr = attributions_map.get(stock_name)
 
             shortlist.append(ShortlistItem(
                 rank=idx + 1,
-                Stock=str(row['Stock']),
+                Stock=stock_name,
                 CLOSE=round(close_val, 2),
                 formatted_close=f"₹{close_val:,.2f}",
                 prob_beat_nifty100=prob_val,
@@ -611,8 +781,10 @@ def predict_alpha(req: PredictRequest):
                 nifty100_ret_63d=round(nifty_ret, 2) if nifty_ret is not None else None,
                 formatted_nifty_return=f"{nifty_ret:+.2f}%" if nifty_ret is not None else "N/A",
                 actual_alpha=round(stock_alpha, 2) if stock_alpha is not None else None,
-                formatted_actual_alpha=f"{stock_alpha:+.2f}%" if stock_alpha is not None else "N/A"
+                formatted_actual_alpha=f"{stock_alpha:+.2f}%" if stock_alpha is not None else "N/A",
+                attribution=stock_attr
             ))
+
 
     return PredictResponseV2(
         date=req.date,
