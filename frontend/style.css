@@ -165,9 +165,10 @@ body {
 }
 
 .main-title {
+  font-family: var(--font-mono);
   font-size: 1.85rem;
-  font-weight: 800;
-  letter-spacing: -0.03em;
+  font-weight: 700;
+  letter-spacing: 0.04em;
   color: #ffffff;
 }
 
