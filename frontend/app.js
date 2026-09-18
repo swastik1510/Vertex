@@ -314,7 +314,7 @@ document.addEventListener("DOMContentLoaded", () => {
         <td class="col-num">${item.formatted_pred_return}</td>
         <td class="col-num ${alphaClass}">${item.formatted_predicted_alpha}</td>
         <td class="col-center">
-          <button class="btn-explain" type="button" title="View Model Drivers for ${item.Stock}">⚡ Explain</button>
+          <button class="btn-explain" type="button" title="View Model Drivers for ${item.Stock}">Explain</button>
         </td>
       `;
 
@@ -376,7 +376,7 @@ document.addEventListener("DOMContentLoaded", () => {
         <td class="col-num">${item.formatted_nifty_return}</td>
         <td class="col-num alpha-pos" style="font-weight:700;">${item.formatted_actual_alpha}</td>
         <td class="col-center">
-          <button class="btn-explain" type="button" title="View Model Drivers for ${item.Stock}">⚡ Explain</button>
+          <button class="btn-explain" type="button" title="View Model Drivers for ${item.Stock}">Explain</button>
         </td>
       `;
 

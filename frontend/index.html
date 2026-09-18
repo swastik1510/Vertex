@@ -3,27 +3,26 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Vertex – Nifty Alpha Engine</title>
+  <title>Vertex</title>
   <meta name="description" content="AI Fund Manager predicting Nifty 100 stocks likely to beat the index in the next 63 trading days using Dual Classification + Regression models.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
   <div class="app-container">
-    <!-- Title Section -->
+    <!-- Main Header -->
     <header class="app-header">
       <div class="header-content">
-        <h1 class="main-title">Vertex – Nifty Alpha Engine</h1>
-        <span id="versionTag" class="version-tag">Version 2</span>
+        <h1 class="main-title">Vertex</h1>
       </div>
     </header>
 
     <!-- Date Picker Section -->
     <section class="control-section">
       <div class="control-header">
-        <h2 class="section-title">📅 Select Trading Date</h2>
+        <h2 class="section-title">Select Trading Date</h2>
         <div class="date-range-badge">
           <span>Range: <strong>01-Jan-2024</strong> to <strong>30-Sep-2024</strong></span>
         </div>
@@ -34,7 +33,7 @@
         <div class="input-action-row">
           <input type="date" id="dateInput" class="date-picker-input" min="2024-01-01" max="2024-09-30" value="2024-09-30" />
           <button id="predictBtn" class="btn-predict">
-            <span class="btn-text">🚀 Predict</span>
+            <span class="btn-text">Predict</span>
             <span class="btn-spinner hidden" id="btnSpinner"></span>
           </button>
         </div>
@@ -47,7 +46,7 @@
 
     <!-- Results Section (shown only after predict clicked) -->
     <section id="resultsSection" class="results-section hidden">
-      <!-- 3️⃣ PERFORMANCE SUMMARY (KPI METRICS) -->
+      <!-- PERFORMANCE SUMMARY (KPI METRICS) -->
       <div class="kpi-grid">
         <div class="kpi-card">
           <div class="kpi-label">Total Evaluated</div>
@@ -75,13 +74,13 @@
       <div class="tabs-container">
         <div class="tabs-nav" role="tablist">
           <button class="tab-btn active" id="tabBtnSignals" data-tab="tabSignals" role="tab" aria-selected="true">
-            🎯 1. Signals
+            Signals
           </button>
           <button class="tab-btn" id="tabBtnOutcomes" data-tab="tabOutcomes" role="tab" aria-selected="false">
-            📊 2. Outcomes (Prediction vs Reality)
+            Outcomes
           </button>
           <button class="tab-btn" id="tabBtnShortlist" data-tab="tabShortlist" role="tab" aria-selected="false">
-            🏆 3. Correct Predictions Shortlist
+            Shortlist
             <span id="shortlistBadgeCount" class="tab-badge">0</span>
           </button>
         </div>
@@ -146,7 +145,6 @@
         <!-- Tab 3: Shortlist Table -->
         <div class="tab-content" id="tabShortlist" role="tabpanel">
           <div id="shortlistBanner" class="shortlist-summary-banner">
-            <div class="banner-icon">⚡</div>
             <div class="banner-text">
               <strong id="shortlistBannerCount">0 stocks</strong> where the model was <strong>CORRECT</strong> & actually beat Nifty 100.
               <span class="alpha-highlight" id="shortlistBannerAlpha">Average Actual Alpha: +0.00%</span>
@@ -216,7 +214,7 @@
       <!-- Institutional Factor Pillars -->
       <div class="drawer-section">
         <div class="drawer-section-header">
-          <h3 class="drawer-section-title">🏛️ Factor Pillars (Net Attribution)</h3>
+          <h3 class="drawer-section-title">Factor Pillars (Net Attribution)</h3>
           <span class="drawer-section-hint">Log-odds impact</span>
         </div>
         <div id="drawerPillarsContainer" class="pillars-grid">
@@ -227,7 +225,7 @@
       <!-- Model Drivers (Top Positive Features) -->
       <div class="drawer-section">
         <div class="drawer-section-header">
-          <h3 class="drawer-section-title">🚀 Model Drivers (Bullish Push)</h3>
+          <h3 class="drawer-section-title">Model Drivers (Bullish Push)</h3>
           <span class="drawer-section-badge badge-pos">Top Positive Factors</span>
         </div>
         <p class="drawer-section-desc">Key factors that elevated the model's confidence in beating Nifty:</p>
@@ -239,25 +237,13 @@
       <!-- Signal Risks (Top Negative Features) -->
       <div class="drawer-section">
         <div class="drawer-section-header">
-          <h3 class="drawer-section-title">⚠️ Signal Risks & Headwinds</h3>
+          <h3 class="drawer-section-title">Signal Risks & Headwinds</h3>
           <span class="drawer-section-badge badge-neg">Top Drag Factors</span>
         </div>
         <p class="drawer-section-desc">Factors creating friction or uncertainty against outperformance:</p>
         <div id="drawerRisksList" class="attribution-list">
           <!-- Dynamically populated -->
         </div>
-      </div>
-
-      <!-- Quantitative Methodology Disclaimer -->
-      <div class="drawer-disclaimer">
-        <div class="disclaimer-header">
-          <span class="disclaimer-icon">💡</span>
-          <strong>Institutional Methodology Note</strong>
-        </div>
-        <p class="disclaimer-text">
-          Attributions are computed mathematically using <strong>TreeSHAP (Shapley Additive exPlanations)</strong> directly through the trained XGBoost trees.
-          They explain <em>what influenced the model's decision path</em>, rather than guaranteeing real-world causal price movements.
-        </p>
       </div>
     </div>
   </aside>
