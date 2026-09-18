@@ -241,66 +241,72 @@ def startup_event():
 # ------------------------------------------------------------
 def get_nifty_features_and_predict(target_date: pd.Timestamp) -> float:
     """
-    Compute approximate features for Nifty on target_date using Nifty_Close.
-    Predict using existing regression model if available.
+    Compute Nifty 63D return on target_date.
+    Uses regression model if available, otherwise calculates dynamic 63D forward
+    return directly from Nifty_Close in the dataset.
     """
-    if model_reg is None or scaler_reg is None or df is None:
+    if df is None:
         return 0.0
 
-    nifty_hist = df[df['Date'] <= target_date].groupby('Date')['Nifty_Close'].first().reset_index()
-    nifty_hist = nifty_hist.sort_values('Date').reset_index(drop=True)
+    # 1. Compute dynamic 63D forward return from Nifty_Close
+    nifty_series = df.groupby('Date')['Nifty_Close'].first().sort_index()
+    nifty_ret_63d = 0.0
+    if not nifty_series.empty:
+        target_ts = pd.to_datetime(target_date).normalize()
+        if target_ts not in nifty_series.index:
+            closest_idx = (nifty_series.index - target_ts).abs().argmin()
+            target_ts = nifty_series.index[closest_idx]
 
-    if len(nifty_hist) < 20:
-        return 0.0
+        idx = nifty_series.index.get_loc(target_ts)
+        tgt_idx = min(idx + 63, len(nifty_series) - 1)
+        if tgt_idx > idx:
+            nifty_ret_63d = float((nifty_series.iloc[tgt_idx] - nifty_series.iloc[idx]) / nifty_series.iloc[idx] * 100.0)
 
-    nifty_hist['daily_ret'] = nifty_hist['Nifty_Close'].pct_change() * 100
-    for d in [5, 10, 21, 42, 63, 126]:
-        nifty_hist[f'ret_{d}d'] = nifty_hist['Nifty_Close'].pct_change(d) * 100
+    # 2. If regression model & scaler are loaded, run full model prediction
+    if model_reg is not None and scaler_reg is not None:
+        try:
+            nifty_hist = df[df['Date'] <= target_date].groupby('Date')['Nifty_Close'].first().reset_index()
+            nifty_hist = nifty_hist.sort_values('Date').reset_index(drop=True)
+            if len(nifty_hist) >= 20:
+                nifty_hist['daily_ret'] = nifty_hist['Nifty_Close'].pct_change() * 100
+                for d in [5, 10, 21, 42, 63, 126]:
+                    nifty_hist[f'ret_{d}d'] = nifty_hist['Nifty_Close'].pct_change(d) * 100
+                nifty_hist['SMA_50'] = nifty_hist['Nifty_Close'].rolling(50, min_periods=10).mean()
+                nifty_hist['SMA_200'] = nifty_hist['Nifty_Close'].rolling(200, min_periods=20).mean()
+                nifty_hist['dist_sma50'] = (nifty_hist['Nifty_Close'] / nifty_hist['SMA_50'] - 1) * 100
+                nifty_hist['dist_sma200'] = (nifty_hist['Nifty_Close'] / nifty_hist['SMA_200'] - 1) * 100
+                nifty_hist['return_z_21'] = (nifty_hist['daily_ret'] - nifty_hist['daily_ret'].mean()) / (nifty_hist['daily_ret'].std() + 1e-6)
+                nifty_hist['return_z_63'] = (nifty_hist['daily_ret'] - nifty_hist['daily_ret'].rolling(63, min_periods=10).mean()) / (nifty_hist['daily_ret'].rolling(63, min_periods=10).std() + 1e-6)
+                nifty_hist['vol_21d'] = nifty_hist['daily_ret'].rolling(21, min_periods=5).std()
+                nifty_hist['vol_63d'] = nifty_hist['daily_ret'].rolling(63, min_periods=10).std()
+                nifty_hist['vol_126d'] = nifty_hist['daily_ret'].rolling(126, min_periods=20).std()
+                nifty_hist['ROC_12'] = nifty_hist['Nifty_Close'].pct_change(12) * 100
+                nifty_hist['ROC_26'] = nifty_hist['Nifty_Close'].pct_change(26) * 100
+                nifty_hist['TSF_slope'] = nifty_hist['Nifty_Close'].rolling(20, min_periods=5).apply(
+                    lambda y: np.polyfit(range(len(y)), y, 1)[0] if len(y) >= 5 else 0.0
+                )
+                nifty_hist['month'] = nifty_hist['Date'].dt.month
+                nifty_hist['day_of_year'] = nifty_hist['Date'].dt.dayofyear
+                nifty_hist['week_of_year'] = nifty_hist['Date'].dt.isocalendar().week.astype(int)
+                nifty_row = nifty_hist[nifty_hist['Date'] == target_date]
+                if nifty_row.empty:
+                    nifty_row = nifty_hist.tail(1)
 
-    nifty_hist['SMA_50'] = nifty_hist['Nifty_Close'].rolling(50, min_periods=10).mean()
-    nifty_hist['SMA_200'] = nifty_hist['Nifty_Close'].rolling(200, min_periods=20).mean()
-    nifty_hist['dist_sma50'] = (nifty_hist['Nifty_Close'] / nifty_hist['SMA_50'] - 1) * 100
-    nifty_hist['dist_sma200'] = (nifty_hist['Nifty_Close'] / nifty_hist['SMA_200'] - 1) * 100
+                nifty_features = pd.DataFrame(0.0, columns=REG_FEATURES, index=[0])
+                for feat in REG_FEATURES:
+                    if feat in nifty_row.columns:
+                        val = nifty_row[feat].iloc[0]
+                        nifty_features[feat] = val if pd.notna(val) else 0.0
+                for feat in [f for f in REG_FEATURES if '_rank' in f]:
+                    nifty_features[feat] = 0.5
 
-    nifty_hist['return_z_21'] = (nifty_hist['daily_ret'] - nifty_hist['daily_ret'].mean()) / (nifty_hist['daily_ret'].std() + 1e-6)
-    nifty_hist['return_z_63'] = (nifty_hist['daily_ret'] - nifty_hist['daily_ret'].rolling(63, min_periods=10).mean()) / (nifty_hist['daily_ret'].rolling(63, min_periods=10).std() + 1e-6)
+                nifty_scaled = scaler_reg.transform(nifty_features)
+                nifty_dmatrix = xgb.DMatrix(nifty_scaled, feature_names=REG_FEATURES)
+                return float(model_reg.predict(nifty_dmatrix)[0])
+        except Exception as e:
+            print(f"Regression model prediction for Nifty failed: {e}")
 
-    nifty_hist['vol_21d'] = nifty_hist['daily_ret'].rolling(21, min_periods=5).std()
-    nifty_hist['vol_63d'] = nifty_hist['daily_ret'].rolling(63, min_periods=10).std()
-    nifty_hist['vol_126d'] = nifty_hist['daily_ret'].rolling(126, min_periods=20).std()
-
-    nifty_hist['ROC_12'] = nifty_hist['Nifty_Close'].pct_change(12) * 100
-    nifty_hist['ROC_26'] = nifty_hist['Nifty_Close'].pct_change(26) * 100
-
-    nifty_hist['TSF_slope'] = nifty_hist['Nifty_Close'].rolling(20, min_periods=5).apply(
-        lambda y: np.polyfit(range(len(y)), y, 1)[0] if len(y) >= 5 else 0.0
-    )
-
-    nifty_hist['month'] = nifty_hist['Date'].dt.month
-    nifty_hist['day_of_year'] = nifty_hist['Date'].dt.dayofyear
-    nifty_hist['week_of_year'] = nifty_hist['Date'].dt.isocalendar().week.astype(int)
-
-    nifty_row = nifty_hist[nifty_hist['Date'] == target_date]
-    if nifty_row.empty:
-        nifty_row = nifty_hist.tail(1)
-
-    nifty_features = pd.DataFrame(0.0, columns=REG_FEATURES, index=[0])
-
-    for feat in REG_FEATURES:
-        if feat in nifty_row.columns:
-            val = nifty_row[feat].iloc[0]
-            nifty_features[feat] = val if pd.notna(val) else 0.0
-
-    for feat in [f for f in REG_FEATURES if '_rank' in f]:
-        nifty_features[feat] = 0.5
-
-    try:
-        nifty_scaled = scaler_reg.transform(nifty_features)
-        nifty_dmatrix = xgb.DMatrix(nifty_scaled, feature_names=REG_FEATURES)
-        return float(model_reg.predict(nifty_dmatrix)[0])
-    except Exception as e:
-        print(f"Error predicting Nifty return: {e}")
-        return 0.0
+    return nifty_ret_63d
 
 # ------------------------------------------------------------
 # PYDANTIC RESPONSE SCHEMAS
@@ -651,15 +657,14 @@ def predict_alpha(req: PredictRequest):
         else:
             day_df['actual_return_63d'] = np.nan
 
-    if 'nifty100_ret_63d' not in day_df.columns:
-        day_df['nifty100_ret_63d'] = np.nan
+    # Populate nifty100_ret_63d with the real Nifty forward return
+    day_df['nifty100_ret_63d'] = nifty_pred_return
 
-    if 'beat_nifty100' not in day_df.columns:
-        valid_comp = day_df['actual_return_63d'].notna() & day_df['nifty100_ret_63d'].notna()
-        day_df['beat_nifty100'] = np.nan
-        day_df.loc[valid_comp, 'beat_nifty100'] = (
-            day_df.loc[valid_comp, 'actual_return_63d'] > day_df.loc[valid_comp, 'nifty100_ret_63d']
-        ).astype(int)
+    valid_comp = day_df['actual_return_63d'].notna() & day_df['nifty100_ret_63d'].notna()
+    day_df['beat_nifty100'] = np.nan
+    day_df.loc[valid_comp, 'beat_nifty100'] = (
+        day_df.loc[valid_comp, 'actual_return_63d'] > day_df.loc[valid_comp, 'nifty100_ret_63d']
+    ).astype(int)
 
     day_df['return_deviation'] = day_df['actual_return_63d'] - day_df['pred_return']
 
