@@ -456,20 +456,45 @@ def compute_stock_attributions(df_subset: pd.DataFrame) -> Dict[str, StockAttrib
             if not top_drivers:
                 top_drivers = sorted(all_factors, key=lambda x: x.impact, reverse=True)[:1]
 
+            # Normalize drivers to % share of displayed bullish push
+            pos_driver_sum = sum(d.impact for d in top_drivers)
+            for d in top_drivers:
+                if pos_driver_sum > 0:
+                    pct = (d.impact / pos_driver_sum) * 100.0
+                    d.formatted_impact = f"+{pct:.0f}%"
+                else:
+                    d.formatted_impact = "+0%"
+
             # Top 3 negative signal risks (headwinds/drags)
             neg_factors = sorted([f for f in all_factors if f.impact < 0], key=lambda x: x.impact)
             top_risks = neg_factors[:3]
             if not top_risks:
                 top_risks = sorted(all_factors, key=lambda x: x.impact)[:1]
 
-            pillar_scores = [
-                PillarScore(
+            # Normalize risks to % share of displayed drag
+            neg_risk_sum = sum(abs(r.impact) for r in top_risks)
+            for r in top_risks:
+                if neg_risk_sum > 0:
+                    pct = (abs(r.impact) / neg_risk_sum) * 100.0
+                    r.formatted_impact = f"-{pct:.0f}%"
+                else:
+                    r.formatted_impact = "-0%"
+
+            # Factor Pillars: Normalize to % share of total factor activity
+            total_abs_pillar = sum(abs(pillar_sums.get(p, 0.0)) for p in PILLARS_ORDER)
+            pillar_scores = []
+            for p in PILLARS_ORDER:
+                raw_net = pillar_sums.get(p, 0.0)
+                if total_abs_pillar > 0:
+                    pct = (raw_net / total_abs_pillar) * 100.0
+                    formatted_val = f"{pct:+.0f}%"
+                else:
+                    formatted_val = "0%"
+                pillar_scores.append(PillarScore(
                     pillar=p,
-                    net_impact=round(pillar_sums.get(p, 0.0), 4),
-                    formatted_net_impact=f"{pillar_sums.get(p, 0.0):+.2f}"
-                )
-                for p in PILLARS_ORDER
-            ]
+                    net_impact=round(raw_net, 4),
+                    formatted_net_impact=formatted_val
+                ))
 
             stock_symbol = str(stock_names[i])
             attributions[stock_symbol] = StockAttribution(
