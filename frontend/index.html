@@ -3,249 +3,537 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Vertex Intelligence</title>
-  <meta name="description" content="AI Fund Manager predicting Nifty 100 stocks likely to beat the index in the next 63 trading days using Dual Classification + Regression models.">
+  <title>Vertex Intelligence - Systematic Benchmark Outperformance</title>
+  <meta name="description" content="A quantitative engine designed to forecast 63-day alpha across the Nifty 100 - combining predictive factor modeling with full attribution transparency.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css?v=3">
 </head>
 <body>
-  <div class="app-container">
-    <!-- Main Header -->
-    <header class="app-header">
-      <div class="header-content">
-        <h1 class="main-title">Vertex Intelligence</h1>
+
+  <!-- ============================================================
+       VIEW 1: INSTITUTIONAL LANDING PRESENTATION
+       ============================================================ -->
+  <div id="landingView" class="landing-view">
+    <!-- Landing Navigation -->
+    <header class="landing-nav">
+      <div class="landing-brand">
+        <span class="brand-monogram">V</span>
+        <div class="brand-info">
+          <span class="brand-title">Vertex Intelligence</span>
+          <span class="brand-sub">QUANTITATIVE ALPHA ENGINE</span>
+        </div>
+      </div>
+      <nav class="landing-nav-links">
+        <a href="#how-it-works" class="nav-link">How It Works</a>
+        <a href="#why-3-months" class="nav-link">Why 3 Months?</a>
+        <a href="#insights" class="nav-link">Explainable AI</a>
+      </nav>
+      <div class="landing-nav-action">
+        <button id="navLaunchBtn" class="btn-nav-launch" type="button">
+          Launch Vertex Intelligence <span class="arrow">→</span>
+        </button>
       </div>
     </header>
 
-    <!-- Date Picker Section -->
-    <section class="control-section">
-      <div class="control-header">
-        <h2 class="section-title">Select Trading Date</h2>
-        <div class="date-range-badge">
-          <span>Range: <strong>01-Jan-2024</strong> to <strong>30-Sep-2024</strong></span>
-        </div>
-      </div>
-      <p class="date-range-hint">Date restricted to 30-Sep-2024 so the full 63-day forward horizon evaluates within the 2024 test universe.</p>
-      <div class="field-group">
-        <label for="dateInput" class="field-label">Choose trading date (01-Jan-2024 to 30-Sep-2024):</label>
-        <div class="input-action-row">
-          <input type="date" id="dateInput" class="date-picker-input" min="2024-01-01" max="2024-09-30" value="2024-09-30" />
-          <button id="predictBtn" class="btn-predict">
-            <span class="btn-text">Predict</span>
-            <span class="btn-spinner hidden" id="btnSpinner"></span>
-          </button>
-        </div>
-        <div id="dateResolutionNote" class="date-note hidden"></div>
-      </div>
-    </section>
-
-    <!-- Message Alerts Container -->
-    <div id="messageContainer" class="message-container hidden"></div>
-
-    <!-- Results Section (shown only after predict clicked) -->
-    <section id="resultsSection" class="results-section hidden">
-      <!-- PERFORMANCE SUMMARY (KPI METRICS) -->
-      <div class="kpi-grid">
-        <div class="kpi-card">
-          <div class="kpi-label">Total Evaluated</div>
-          <div class="kpi-value" id="kpiTotalStocks">-</div>
-          <div class="kpi-subtext">Stocks</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-label">% Predicted to Beat Nifty</div>
-          <div class="kpi-value" id="kpiPredictedBeatPct">-</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-label">Beat Accuracy (%)</div>
-          <div class="kpi-value highlight-green" id="kpiBeatAccuracy">-</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-label">Benchmark-Adjusted Accuracy</div>
-          <div class="kpi-value highlight-blue" id="kpiBenchmarkAccuracy">-</div>
-        </div>
+    <!-- Hero Section -->
+    <section class="landing-hero">
+      <div class="hero-badge">
+        <span class="badge-pulse-dot"></span>
+        <span>NIFTY 100 QUANTITATIVE ENGINE</span>
       </div>
 
-      <!-- Navigation Tabs -->
-      <div class="tabs-container">
-        <div class="tabs-nav" role="tablist">
-          <button class="tab-btn active" id="tabBtnSignals" data-tab="tabSignals" role="tab" aria-selected="true">
-            Signals
-          </button>
-          <button class="tab-btn" id="tabBtnOutcomes" data-tab="tabOutcomes" role="tab" aria-selected="false">
-            Outcomes
-          </button>
-          <button class="tab-btn" id="tabBtnShortlist" data-tab="tabShortlist" role="tab" aria-selected="false">
-            Shortlist
-            <span id="shortlistBadgeCount" class="tab-badge">0</span>
-          </button>
-        </div>
+      <h1 class="hero-headline">Systematic Benchmark Outperformance for Indian Equities.</h1>
 
-        <!-- Tab 1: Signals Table -->
-        <div class="tab-content active" id="tabSignals" role="tabpanel">
-          <div class="table-card">
-            <div class="table-header-info">
-              <div class="table-title-group">
-                <span class="table-title">Stock Outperformance Signals & Expected Alpha</span>
-                <div id="niftyBadge" class="nifty-badge hidden">
-                  <span class="nifty-label">Nifty Expected 63D Return:</span>
-                  <span id="niftyReturnValue" class="nifty-value">+0.00%</span>
-                </div>
-              </div>
-              <span id="signalsCount" class="results-count"></span>
-            </div>
-            <div class="table-responsive">
-              <table class="data-table" id="signalsTable">
-                <thead>
-                  <tr>
-                    <th class="col-rank">#</th>
-                    <th class="col-stock">Stock</th>
-                    <th class="col-num">CLOSE</th>
-                    <th class="col-center">Beat Nifty Signal</th>
-                    <th class="col-num">Prob Beat Nifty</th>
-                    <th class="col-num">Pred 63D Return</th>
-                    <th class="col-num">Predicted Alpha vs Nifty</th>
-                    <th class="col-center">Drivers</th>
-                  </tr>
-                </thead>
-                <tbody id="signalsTableBody"></tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+      <p class="hero-subhead">
+        A quantitative engine designed to forecast 63-day alpha across the Nifty 100 - combining predictive factor modeling with full attribution transparency.
+      </p>
 
-        <!-- Tab 2: Outcomes Table -->
-        <div class="tab-content" id="tabOutcomes" role="tabpanel">
-          <div class="table-card">
-            <div class="table-header-info">
-              <span class="table-title">Historical Outcomes (Model Prediction vs Market Reality)</span>
-              <span id="outcomesCount" class="results-count"></span>
-            </div>
-            <div class="table-responsive">
-              <table class="data-table" id="outcomesTable">
-                <thead>
-                  <tr>
-                    <th class="col-rank">#</th>
-                    <th class="col-stock">Stock</th>
-                    <th class="col-num">Pred 63D Return</th>
-                    <th class="col-num">Actual 63D Return</th>
-                    <th class="col-num">Return Deviation</th>
-                  </tr>
-                </thead>
-                <tbody id="outcomesTableBody"></tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+      <div class="hero-cta-group">
+        <button id="heroLaunchBtn" class="btn-hero-primary" type="button">
+          Launch Vertex Intelligence <span class="arrow">→</span>
+        </button>
+      </div>
 
-        <!-- Tab 3: Shortlist Table -->
-        <div class="tab-content" id="tabShortlist" role="tabpanel">
-          <div id="shortlistBanner" class="shortlist-summary-banner">
-            <div class="banner-text">
-              <strong id="shortlistBannerCount">0 stocks</strong> where the model was <strong>CORRECT</strong> & actually beat Nifty 100.
-              <span class="alpha-highlight" id="shortlistBannerAlpha">Average Actual Alpha: +0.00%</span>
-            </div>
-          </div>
-          <div class="table-card">
-            <div class="table-responsive">
-              <table class="data-table" id="shortlistTable">
-                <thead>
-                  <tr>
-                    <th class="col-rank">#</th>
-                    <th class="col-stock">Stock</th>
-                    <th class="col-num">CLOSE</th>
-                    <th class="col-num">Prob Beat Nifty</th>
-                    <th class="col-num">Pred 63D Return</th>
-                    <th class="col-num">Actual 63D Return</th>
-                    <th class="col-num">Actual Nifty 63D</th>
-                    <th class="col-num">Actual Alpha</th>
-                    <th class="col-center">Drivers</th>
-                  </tr>
-                </thead>
-                <tbody id="shortlistTableBody"></tbody>
-              </table>
-            </div>
-          </div>
+      <!-- Quick Telemetry Stats Strip -->
+      <div class="hero-telemetry-strip">
+        <div class="telemetry-item">
+          <div class="telemetry-value">100</div>
+          <div class="telemetry-label">Equities Evaluated Daily</div>
+        </div>
+        <div class="telemetry-sep">/</div>
+        <div class="telemetry-item">
+          <div class="telemetry-value">63D</div>
+          <div class="telemetry-label">Forward Alpha Horizon</div>
+        </div>
+        <div class="telemetry-sep">/</div>
+        <div class="telemetry-item">
+          <div class="telemetry-value">40+</div>
+          <div class="telemetry-label">Factor Dimensions</div>
+        </div>
+        <div class="telemetry-sep">/</div>
+        <div class="telemetry-item">
+          <div class="telemetry-value">100%</div>
+          <div class="telemetry-label">Attributed Decomposition</div>
         </div>
       </div>
     </section>
+
+    <!-- Terminal Visual Preview / Teaser -->
+    <section class="landing-preview-section">
+      <div class="terminal-preview-frame">
+        <div class="preview-chrome-bar">
+          <div class="chrome-dots">
+            <span class="dot dot-red"></span>
+            <span class="dot dot-amber"></span>
+            <span class="dot dot-green"></span>
+          </div>
+          <div class="chrome-title">VERTEX TERMINAL // NIFTY 100 ALPHA MATRIX</div>
+          <div class="chrome-status"><span class="live-dot">●</span> 2024 EVALUATION SUITE</div>
+        </div>
+        <div class="preview-content-card">
+          <div class="preview-table-header">
+            <span class="preview-col col-s">STOCK</span>
+            <span class="preview-col col-p">CLOSE</span>
+            <span class="preview-col col-sig">BEAT SIGNAL</span>
+            <span class="preview-col col-pr">PROBABILITY</span>
+            <span class="preview-col col-a">PRED ALPHA</span>
+            <span class="preview-col col-d">PRIMARY ATTRIBUTION</span>
+          </div>
+          <div class="preview-row highlight">
+            <span class="preview-cell stock-name"><strong>TATASTEEL</strong></span>
+            <span class="preview-cell">₹168.45</span>
+            <span class="preview-cell"><span class="signal-pill signal-yes">YES</span></span>
+            <span class="preview-cell prob-text">84.2%</span>
+            <span class="preview-cell alpha-pos">+6.85%</span>
+            <span class="preview-cell driver-tag">Volume Surge (+32%)</span>
+          </div>
+          <div class="preview-row">
+            <span class="preview-cell stock-name"><strong>BHARTIARTL</strong></span>
+            <span class="preview-cell">₹1,540.20</span>
+            <span class="preview-cell"><span class="signal-pill signal-yes">YES</span></span>
+            <span class="preview-cell prob-text">78.6%</span>
+            <span class="preview-cell alpha-pos">+4.12%</span>
+            <span class="preview-cell driver-tag">Strong 21-Day Momentum</span>
+          </div>
+          <div class="preview-row">
+            <span class="preview-cell stock-name"><strong>RELIANCE</strong></span>
+            <span class="preview-cell">₹2,925.10</span>
+            <span class="preview-cell"><span class="signal-pill signal-no">NO</span></span>
+            <span class="preview-cell prob-muted">38.4%</span>
+            <span class="preview-cell alpha-neg">-2.40%</span>
+            <span class="preview-cell driver-tag">Overbought RSI Drag</span>
+          </div>
+        </div>
+        <div class="preview-action-overlay">
+          <button id="previewLaunchBtn" class="btn-preview-launch" type="button">
+            Enter Live Terminal Workspace <span class="arrow">→</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section id="how-it-works" class="pillars-section">
+      <div class="section-badge-center">HOW IT WORKS</div>
+      <h2 class="section-main-heading">Three Clear Predictions Behind Every Stock</h2>
+      <p class="section-sub-heading">Most financial screeners just give you a static ticker name. Vertex delivers the win probability, expected extra profit, and the clear reasons behind each signal.</p>
+
+      <div class="pillars-feature-grid">
+        <!-- Pillar 1 -->
+        <div class="pillar-feature-card">
+          <div class="pillar-card-header">
+            <span class="pillar-index">01</span>
+            <span class="pillar-tag">WIN CHANCE</span>
+          </div>
+          <h3 class="pillar-card-title">Outperformance Probability</h3>
+          <p class="pillar-card-desc">
+            What are the statistical odds of this stock beating the Nifty 100 index over the next 3 months? We filter out hype and fake rallies by checking both price strength and big-buyer volume.
+          </p>
+          <div class="pillar-feature-telemetry">
+            <span class="tel-label">What it answers:</span>
+            <span class="tel-value">"Is this stock likely to beat the market?"</span>
+          </div>
+        </div>
+
+        <!-- Pillar 2 -->
+        <div class="pillar-feature-card highlight-pillar">
+          <div class="pillar-card-header">
+            <span class="pillar-index">02</span>
+            <span class="pillar-tag highlight">EXTRA RETURN</span>
+          </div>
+          <h3 class="pillar-card-title">Expected Extra Return (Alpha)</h3>
+          <p class="pillar-card-desc">
+            How much more return is this stock predicted to deliver above the Nifty benchmark? Focus only on stocks with genuine extra profit potential, not stocks that merely mirror the market.
+          </p>
+          <div class="pillar-feature-telemetry">
+            <span class="tel-label">What it answers:</span>
+            <span class="tel-value">"How much excess profit can I expect?"</span>
+          </div>
+        </div>
+
+        <!-- Pillar 3 -->
+        <div class="pillar-feature-card">
+          <div class="pillar-card-header">
+            <span class="pillar-index">03</span>
+            <span class="pillar-tag">FULL REASONS</span>
+          </div>
+          <h3 class="pillar-card-title">Clear Drivers & Risks</h3>
+          <p class="pillar-card-desc">
+            Zero mystery picks. The model explains the top bullish factors (like institutional volume surges or momentum) and flags potential risks (like overbought levels or volatility).
+          </p>
+          <div class="pillar-feature-telemetry">
+            <span class="tel-label">What it answers:</span>
+            <span class="tel-value">"Why did the model pick this stock?"</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Why 63-Day Horizon Section -->
+    <section id="why-3-months" class="horizon-section">
+      <div class="section-badge-center">TIMING & HORIZON</div>
+      <h2 class="section-main-heading">Why 63 Trading Days (~3 Months)?</h2>
+      <p class="section-sub-heading">Day trading is noisy and costly, while 5-year investing is too slow. Here is why a 3-month positional window is the strategic sweet spot:</p>
+
+      <div class="horizon-comparison-grid">
+        <div class="horizon-card fl-bad">
+          <div class="horizon-badge-neg">1 TO 5 DAYS</div>
+          <h3 class="horizon-card-title">Day Trading & Short-Term F&O</h3>
+          <ul class="horizon-points">
+            <li><strong>Too much random noise:</strong> Short-term price swings are erratic, unpredictable, and stressful.</li>
+            <li><strong>Fees and taxes eat profits:</strong> High brokerage charges, government taxes (STT), and slippage silently drain capital.</li>
+            <li><strong>High failure rate:</strong> Official data shows over 90% of retail day traders lose money consistently.</li>
+          </ul>
+        </div>
+
+        <div class="horizon-card fl-hero">
+          <div class="horizon-badge-pos">63 TRADING DAYS (~3 MONTHS)</div>
+          <h3 class="horizon-card-title">The Vertex Sweet Spot</h3>
+          <ul class="horizon-points">
+            <li><strong>Matches real money cycles:</strong> Aligned with company quarterly earnings reports and big institutional fund rebalancing.</li>
+            <li><strong>Gives trends time to mature:</strong> Quality stocks have enough runway to trend upward without getting cut off by 1-day dips.</li>
+            <li><strong>Low stress & low fees:</strong> Hold for ~1 quarter with minimal transaction costs and zero need to stare at screen charts all day.</li>
+          </ul>
+        </div>
+
+        <div class="horizon-card fl-bad">
+          <div class="horizon-badge-neg">3 TO 5 YEARS</div>
+          <h3 class="horizon-card-title">Multi-Year Buy & Hold</h3>
+          <ul class="horizon-points">
+            <li><strong>Money locked up too long:</strong> Waiting years for an undervalued company to move ties up cash that could grow elsewhere.</li>
+            <li><strong>Risk of holding losers:</strong> Many "cheap" stocks turn into value traps that underperform for years.</li>
+            <li><strong>Misses fast rotations:</strong> Cannot capitalize on high-momentum sector rallies happening right now.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Attribution Explanation Showcase -->
+    <section id="insights" class="attribution-showcase-section">
+      <div class="attribution-box">
+        <div class="attribution-text">
+          <div class="section-badge-left">EXPLAINABLE AI</div>
+          <h2 class="attribution-title">No Black Boxes. See Exactly Why a Stock Was Picked.</h2>
+          <p class="attribution-desc">
+            In a product review, investment committee, or client meeting, you can never just say <em>"the AI told me to buy it."</em> Vertex breaks down the 4 core forces behind every single prediction so you can explain and defend every position:
+          </p>
+          <div class="attribution-pills-row">
+            <span class="attr-pill">📈 Price Momentum (Is the stock trending upward?)</span>
+            <span class="attr-pill">📊 Volume Surge (Are big buyers accumulating?)</span>
+            <span class="attr-pill">⚡ Trend Strength (Is the breakout genuine or fading?)</span>
+            <span class="attr-pill">⚠️ Downside Risks (What headwinds could hurt the trade?)</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Bottom CTA Banner -->
+    <section class="landing-cta-banner">
+      <div class="banner-inner">
+        <h2 class="banner-title">Ready to Evaluate Systematic Alpha Across the Nifty 100?</h2>
+        <p class="banner-sub">Test the quantitative engine across 2024 historical trading dates with full attribution and verifiable outcomes.</p>
+        <button id="bottomLaunchBtn" class="btn-hero-primary" type="button">
+          Launch Vertex Intelligence <span class="arrow">→</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Institutional Footer -->
+    <footer class="landing-footer">
+      <div class="footer-top">
+        <div class="footer-brand">
+          <span class="brand-monogram">V</span>
+          <span class="brand-title">Vertex Intelligence</span>
+        </div>
+        <div class="footer-meta">
+          <span>Benchmark: Nifty 100 Index</span>
+          <span>•</span>
+          <span>Engine: Quantitative Factor Model</span>
+          <span>•</span>
+          <span>Horizon: 63 Trading Days</span>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p class="disclaimer-text">
+          <strong>DISCLAIMER:</strong> Vertex Intelligence is an institutional quantitative analytics platform developed for empirical research, historical evaluation, and factor modeling. Outputs do not constitute SEBI-registered investment advice or formal buy/sell recommendations. Past simulated or test performance is not indicative of future returns.
+        </p>
+      </div>
+    </footer>
   </div>
 
-  <!-- Slide-out Drawer Backdrop Overlay -->
-  <div id="drawerBackdrop" class="drawer-backdrop hidden"></div>
 
-  <!-- Slide-out Side Panel (Model Explainability) -->
-  <aside id="stockExplainDrawer" class="explain-drawer hidden" aria-hidden="true" role="dialog" aria-labelledby="drawerStockTitle">
-    <div class="drawer-header">
-      <div class="drawer-header-content">
-        <div class="drawer-pretitle">QUANTITATIVE MODEL ATTRIBUTION</div>
-        <div class="drawer-title-row">
-          <h2 id="drawerStockTitle" class="drawer-stock-name">STOCK</h2>
-          <span id="drawerSignalBadge" class="signal-pill signal-yes">YES</span>
+  <!-- ============================================================
+       VIEW 2: VERTEX INTELLIGENCE TERMINAL & DASHBOARD
+       ============================================================ -->
+  <main id="dashboardView" class="dashboard-view hidden">
+    <div class="app-container">
+      <!-- Terminal Header with Switcher -->
+      <header class="app-header">
+        <div class="terminal-bar">
+          <div class="terminal-left-group">
+            <button id="backToLandingBtn" class="btn-back-overview" type="button">
+              <span class="arrow">←</span> Overview
+            </button>
+            <span class="terminal-command-badge">VTX-ALPHA-63D</span>
+          </div>
         </div>
-        <div class="drawer-meta-row">
-          <span id="drawerStockClose" class="drawer-price">₹0.00</span>
-          <span class="drawer-sep">•</span>
-          <span id="drawerStockProb" class="drawer-prob">0.0% Beat Nifty</span>
+        <div class="header-content">
+          <div class="header-title-group">
+            <h1 class="main-title">Vertex Intelligence</h1>
+            <span class="header-swiss-tag">NIFTY 100 ALPHA ENGINE</span>
+          </div>
         </div>
-      </div>
-      <button id="closeDrawerBtn" class="drawer-close-btn" aria-label="Close panel">✕</button>
+      </header>
+
+      <!-- Date Picker Section -->
+      <section class="control-section">
+        <div class="control-header">
+          <h2 class="section-title">Select Trading Date</h2>
+          <div class="date-range-badge">
+            <span>Range: <strong>01-Jan-2024</strong> to <strong>30-Sep-2024</strong></span>
+          </div>
+        </div>
+        <p class="date-range-hint">Date restricted to 30-Sep-2024 so the full 63-day forward horizon evaluates within the 2024 test universe.</p>
+        <div class="field-group">
+          <label for="dateInput" class="field-label">Choose trading date (01-Jan-2024 to 30-Sep-2024):</label>
+          <div class="input-action-row">
+            <input type="date" id="dateInput" class="date-picker-input" min="2024-01-01" max="2024-09-30" value="2024-09-30" />
+            <button id="predictBtn" class="btn-predict">
+              <span class="btn-text">Predict</span>
+              <span class="btn-spinner hidden" id="btnSpinner"></span>
+            </button>
+          </div>
+          <div id="dateResolutionNote" class="date-note hidden"></div>
+        </div>
+      </section>
+
+      <!-- Message Alerts Container -->
+      <div id="messageContainer" class="message-container hidden"></div>
+
+      <!-- Results Section (shown only after predict clicked) -->
+      <section id="resultsSection" class="results-section hidden">
+        <!-- PERFORMANCE SUMMARY (KPI METRICS) -->
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-label">Total Evaluated</div>
+            <div class="kpi-value" id="kpiTotalStocks">-</div>
+            <div class="kpi-subtext">Stocks</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">% Predicted to Beat Nifty</div>
+            <div class="kpi-value" id="kpiPredictedBeatPct">-</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Beat Accuracy (%)</div>
+            <div class="kpi-value highlight-green" id="kpiBeatAccuracy">-</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Benchmark-Adjusted Accuracy</div>
+            <div class="kpi-value highlight-blue" id="kpiBenchmarkAccuracy">-</div>
+          </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="tabs-container">
+          <div class="tabs-nav" role="tablist">
+            <button class="tab-btn active" id="tabBtnSignals" data-tab="tabSignals" role="tab" aria-selected="true">
+              Signals
+            </button>
+            <button class="tab-btn" id="tabBtnOutcomes" data-tab="tabOutcomes" role="tab" aria-selected="false">
+              Outcomes
+            </button>
+            <button class="tab-btn" id="tabBtnShortlist" data-tab="tabShortlist" role="tab" aria-selected="false">
+              Shortlist
+              <span id="shortlistBadgeCount" class="tab-badge">0</span>
+            </button>
+          </div>
+
+          <!-- Tab 1: Signals Table -->
+          <div class="tab-content active" id="tabSignals" role="tabpanel">
+            <div class="table-card">
+              <div class="table-header-info">
+                <div class="table-title-group">
+                  <span class="table-title">Stock Outperformance Signals & Expected Alpha</span>
+                  <div id="niftyBadge" class="nifty-badge hidden">
+                    <span class="nifty-label">Nifty Expected 63D Return:</span>
+                    <span id="niftyReturnValue" class="nifty-value">+0.00%</span>
+                  </div>
+                </div>
+                <span id="signalsCount" class="results-count"></span>
+              </div>
+              <div class="table-responsive">
+                <table class="data-table" id="signalsTable">
+                  <thead>
+                    <tr>
+                      <th class="col-rank">#</th>
+                      <th class="col-stock">Stock</th>
+                      <th class="col-num">CLOSE</th>
+                      <th class="col-center">Beat Nifty Signal</th>
+                      <th class="col-num">Prob Beat Nifty</th>
+                      <th class="col-num">Pred 63D Return</th>
+                      <th class="col-num">Predicted Alpha vs Nifty</th>
+                      <th class="col-center">Drivers</th>
+                    </tr>
+                  </thead>
+                  <tbody id="signalsTableBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab 2: Outcomes Table -->
+          <div class="tab-content" id="tabOutcomes" role="tabpanel">
+            <div class="table-card">
+              <div class="table-header-info">
+                <span class="table-title">Historical Outcomes (Model Prediction vs Market Reality)</span>
+                <span id="outcomesCount" class="results-count"></span>
+              </div>
+              <div class="table-responsive">
+                <table class="data-table" id="outcomesTable">
+                  <thead>
+                    <tr>
+                      <th class="col-rank">#</th>
+                      <th class="col-stock">Stock</th>
+                      <th class="col-num">Pred 63D Return</th>
+                      <th class="col-num">Actual 63D Return</th>
+                      <th class="col-num">Return Deviation</th>
+                    </tr>
+                  </thead>
+                  <tbody id="outcomesTableBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab 3: Shortlist Table -->
+          <div class="tab-content" id="tabShortlist" role="tabpanel">
+            <div id="shortlistBanner" class="shortlist-summary-banner">
+              <div class="banner-text">
+                <strong id="shortlistBannerCount">0 stocks</strong> where the model was <strong>CORRECT</strong> & actually beat Nifty 100.
+                <span class="alpha-highlight" id="shortlistBannerAlpha">Average Actual Alpha: +0.00%</span>
+              </div>
+            </div>
+            <div class="table-card">
+              <div class="table-responsive">
+                <table class="data-table" id="shortlistTable">
+                  <thead>
+                    <tr>
+                      <th class="col-rank">#</th>
+                      <th class="col-stock">Stock</th>
+                      <th class="col-num">CLOSE</th>
+                      <th class="col-num">Prob Beat Nifty</th>
+                      <th class="col-num">Pred 63D Return</th>
+                      <th class="col-num">Actual 63D Return</th>
+                      <th class="col-num">Actual Nifty 63D</th>
+                      <th class="col-num">Actual Alpha</th>
+                      <th class="col-center">Drivers</th>
+                    </tr>
+                  </thead>
+                  <tbody id="shortlistTableBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
 
-    <div class="drawer-body">
-      <!-- Snapshot Cards -->
-      <div class="drawer-snapshot-grid">
-        <div class="snapshot-card">
-          <div class="snapshot-label">Beat Nifty Probability</div>
-          <div class="snapshot-val" id="drawerProbVal">0.0%</div>
-          <div class="snapshot-sub">Classification output</div>
+    <!-- Slide-out Drawer Backdrop Overlay -->
+    <div id="drawerBackdrop" class="drawer-backdrop hidden"></div>
+
+    <!-- Slide-out Side Panel (Model Explainability) -->
+    <aside id="stockExplainDrawer" class="explain-drawer hidden" aria-hidden="true" role="dialog" aria-labelledby="drawerStockTitle">
+      <div class="drawer-header">
+        <div class="drawer-header-content">
+          <div class="drawer-pretitle">QUANTITATIVE MODEL ATTRIBUTION</div>
+          <div class="drawer-title-row">
+            <h2 id="drawerStockTitle" class="drawer-stock-name">STOCK</h2>
+            <span id="drawerSignalBadge" class="signal-pill signal-yes">YES</span>
+          </div>
+          <div class="drawer-meta-row">
+            <span id="drawerStockClose" class="drawer-price">₹0.00</span>
+            <span class="drawer-sep">•</span>
+            <span id="drawerStockProb" class="drawer-prob">0.0% Beat Nifty</span>
+          </div>
         </div>
-        <div class="snapshot-card">
-          <div class="snapshot-label">Predicted Alpha</div>
-          <div class="snapshot-val" id="drawerAlphaVal">+0.00%</div>
-          <div class="snapshot-sub">Expected excess return</div>
-        </div>
+        <button id="closeDrawerBtn" class="drawer-close-btn" aria-label="Close panel">✕</button>
       </div>
 
-      <!-- Institutional Factor Pillars -->
-      <div class="drawer-section">
-        <div class="drawer-section-header">
-          <h3 class="drawer-section-title">Factor Pillars (Net Attribution)</h3>
-          <span class="drawer-section-hint">Signal Weight (% Share)</span>
+      <div class="drawer-body">
+        <!-- Snapshot Cards -->
+        <div class="drawer-snapshot-grid">
+          <div class="snapshot-card">
+            <div class="snapshot-label">Beat Nifty Probability</div>
+            <div class="snapshot-val" id="drawerProbVal">0.0%</div>
+            <div class="snapshot-sub">Classification output</div>
+          </div>
+          <div class="snapshot-card">
+            <div class="snapshot-label">Predicted Alpha</div>
+            <div class="snapshot-val" id="drawerAlphaVal">+0.00%</div>
+            <div class="snapshot-sub">Expected excess return</div>
+          </div>
         </div>
-        <div id="drawerPillarsContainer" class="pillars-grid">
-          <!-- Dynamically populated -->
+
+        <!-- Institutional Factor Pillars -->
+        <div class="drawer-section">
+          <div class="drawer-section-header">
+            <h3 class="drawer-section-title">Factor Pillars (Net Attribution)</h3>
+            <span class="drawer-section-hint">Signal Weight (% Share)</span>
+          </div>
+          <div id="drawerPillarsContainer" class="pillars-grid">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+
+        <!-- Model Drivers (Top Positive Features) -->
+        <div class="drawer-section">
+          <div class="drawer-section-header">
+            <h3 class="drawer-section-title">Model Drivers (Bullish Push)</h3>
+            <span class="drawer-section-badge badge-pos">Bullish Weight</span>
+          </div>
+          <p class="drawer-section-desc">Key factors that elevated the model's confidence in beating Nifty:</p>
+          <div id="drawerDriversList" class="attribution-list">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+
+        <!-- Signal Risks (Top Negative Features) -->
+        <div class="drawer-section">
+          <div class="drawer-section-header">
+            <h3 class="drawer-section-title">Signal Risks & Headwinds</h3>
+            <span class="drawer-section-badge badge-neg">Headwind Drag</span>
+          </div>
+          <p class="drawer-section-desc">Factors creating friction or uncertainty against outperformance:</p>
+          <div id="drawerRisksList" class="attribution-list">
+            <!-- Dynamically populated -->
+          </div>
         </div>
       </div>
+    </aside>
+  </main>
 
-      <!-- Model Drivers (Top Positive Features) -->
-      <div class="drawer-section">
-        <div class="drawer-section-header">
-          <h3 class="drawer-section-title">Model Drivers (Bullish Push)</h3>
-          <span class="drawer-section-badge badge-pos">Bullish Weight</span>
-        </div>
-        <p class="drawer-section-desc">Key factors that elevated the model's confidence in beating Nifty:</p>
-        <div id="drawerDriversList" class="attribution-list">
-          <!-- Dynamically populated -->
-        </div>
-      </div>
-
-      <!-- Signal Risks (Top Negative Features) -->
-      <div class="drawer-section">
-        <div class="drawer-section-header">
-          <h3 class="drawer-section-title">Signal Risks & Headwinds</h3>
-          <span class="drawer-section-badge badge-neg">Headwind Drag</span>
-        </div>
-        <p class="drawer-section-desc">Factors creating friction or uncertainty against outperformance:</p>
-        <div id="drawerRisksList" class="attribution-list">
-          <!-- Dynamically populated -->
-        </div>
-      </div>
-    </div>
-  </aside>
-
-
-  <script src="/static/app.js"></script>
+  <script src="/static/app.js?v=3"></script>
 </body>
 </html>

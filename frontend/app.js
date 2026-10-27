@@ -5,8 +5,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnSpinner = document.getElementById("btnSpinner");
   const messageContainer = document.getElementById("messageContainer");
   const resultsSection = document.getElementById("resultsSection");
-  const statusText = document.getElementById("statusText");
-  const versionTag = document.getElementById("versionTag");
   const niftyBadge = document.getElementById("niftyBadge");
   const niftyReturnValue = document.getElementById("niftyReturnValue");
   const dateResolutionNote = document.getElementById("dateResolutionNote");
@@ -200,16 +198,6 @@ document.addEventListener("DOMContentLoaded", () => {
         dateInput.max = maxValidDate;
         dateInput.value = data.default_date || maxValidDate;
       }
-
-      if (data.active_model_mode && versionTag) {
-        if (data.active_model_mode.startsWith("v2")) {
-          versionTag.textContent = "Version 2 (Dual Model)";
-          statusText.textContent = `Model + Data Loaded (${data.unique_stocks} Stocks, 2024 Test Set)`;
-        } else {
-          versionTag.textContent = "Version 1";
-          statusText.textContent = `Model + Data Loaded (${data.unique_stocks} Stocks)`;
-        }
-      }
     } catch (err) {
       console.error("Metadata load error:", err);
       showMessage("danger", "Could not load dataset metadata. Please check the backend server.");
@@ -385,8 +373,62 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // 8. View Switcher (Landing vs Terminal)
+  const landingView = document.getElementById("landingView");
+  const dashboardView = document.getElementById("dashboardView");
+  const navLaunchBtn = document.getElementById("navLaunchBtn");
+  const heroLaunchBtn = document.getElementById("heroLaunchBtn");
+  const previewLaunchBtn = document.getElementById("previewLaunchBtn");
+  const bottomLaunchBtn = document.getElementById("bottomLaunchBtn");
+  const backToLandingBtn = document.getElementById("backToLandingBtn");
+  const headerBackBtn = document.getElementById("headerBackBtn");
+
+  function switchView(viewName) {
+    if (viewName === "dashboard") {
+      if (landingView) landingView.classList.add("hidden");
+      if (dashboardView) dashboardView.classList.remove("hidden");
+      window.location.hash = "terminal";
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } else {
+      if (dashboardView) dashboardView.classList.add("hidden");
+      if (landingView) landingView.classList.remove("hidden");
+      if (window.location.hash === "#terminal" || window.location.hash === "#dashboard") {
+        history.replaceState(null, null, " ");
+      }
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }
+
+  [navLaunchBtn, heroLaunchBtn, previewLaunchBtn, bottomLaunchBtn].forEach((btn) => {
+    if (btn) {
+      btn.addEventListener("click", () => switchView("dashboard"));
+    }
+  });
+
+  [backToLandingBtn, headerBackBtn].forEach((btn) => {
+    if (btn) {
+      btn.addEventListener("click", () => switchView("landing"));
+    }
+  });
+
+  window.addEventListener("hashchange", () => {
+    if (window.location.hash === "#terminal" || window.location.hash === "#dashboard") {
+      switchView("dashboard");
+    } else {
+      if (dashboardView && !dashboardView.classList.contains("hidden")) {
+        switchView("landing");
+      }
+    }
+  });
+
+  // Check initial hash
+  if (window.location.hash === "#terminal" || window.location.hash === "#dashboard") {
+    switchView("dashboard");
+  }
+
   // Initialize
   setupTabs();
   loadMetadata();
   predictBtn.addEventListener("click", handlePredict);
 });
+

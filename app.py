@@ -8,7 +8,7 @@ st.set_page_config(page_title="Vertex", layout="wide")
 # ------------------------------------------------------------
 # 1. APP TITLE
 # ------------------------------------------------------------
-st.title("Vertex – Nifty Alpha Engine")
+st.title("Vertex - Nifty Alpha Engine")
 
 # ------------------------------------------------------------
 # 2. LOAD PIPELINE + DATA
